@@ -1,0 +1,12 @@
+replicaCount: 1
+
+image:
+  repository: "nginx"
+  tag: "stable"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+
+environment: "default"

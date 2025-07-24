@@ -1,0 +1,132 @@
+
+# This pipeline is triggered by commits to the main branch.
+trigger:
+- main
+
+# Using the latest Ubuntu image for builds and deployments.
+pool:
+  vmImage: 'ubuntu-latest'
+
+# These parameters allow you to choose which environments to deploy
+parameters:
+- name: deployToDev
+  displayName: 'Deploy to Development'
+  type: string
+  default: 'true'
+  values:
+  - 'true'
+  - 'false'
+- name: deployToProd
+  displayName: 'Deploy to Production'
+  type: string
+  default: 'false'
+  values:
+  - 'true'
+  - 'false'
+
+# --- Pipeline Stages ---
+stages:
+# -----------------------------------------------------------------
+# STAGE 1: Build the Helm Chart
+# -----------------------------------------------------------------
+- stage: Build
+  displayName: 'Build and Package Helm Chart'
+  jobs:
+  - job: Build
+    steps:
+    - task: HelmInstaller@1
+      inputs:
+        helmVersionToInstall: 'latest'
+
+    - task: HelmDeploy@0
+      displayName: 'Package Helm chart'
+      inputs:
+        command: 'package'
+        chartPath: '$(Build.SourcesDirectory)/helm'
+        destination: '$(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'helm-chart'
+        publishLocation: 'Container'
+
+# -----------------------------------------------------------------
+#  Deploy to Development Environment
+# -----------------------------------------------------------------
+- stage: Deploy_Dev
+  displayName: 'Deploy to dev'
+  dependsOn: Build
+  # Condition to run this stage based on the pipeline parameter
+  condition: and(succeeded(), eq('${{ parameters.deployToDev }}', 'true'))
+  jobs:
+  - deployment: DeployHelmChart_Dev
+    displayName: 'Deploy to AKS (dev)'
+    environment: 'dev'
+    # Load the 'dev' variable group
+    variables:
+    - group: 'my-app-dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'helm-chart'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: HelmDeploy@0
+            displayName: 'Deploy Helm chart to dev'
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: '$(KUBERNETES_SERVICE_CONNECTION)'
+              command: 'upgrade'
+              chartType: 'FilePath'
+              chartPath: '$(System.ArtifactsDirectory)/helm-chart/hello-world-*.tgz'
+              releaseName: 'hello-world-release'
+              install: true
+              namespace: 'default'
+              valueFile: '$(Build.SourcesDirectory)/helm/values.dev.yaml'
+
+
+
+# -----------------------------------------------------------------
+# Deploy to Production Environment
+# -----------------------------------------------------------------
+- stage: Deploy_Prod
+  displayName: 'Deploy to prod'
+  dependsOn: Deploy_Staging
+  # Condition to run this stage based on the pipeline parameter
+  condition: and(succeeded(), eq('${{ parameters.deployToProd }}', 'true'))
+  jobs:
+  - deployment: DeployHelmChart_Prod
+    displayName: 'Deploy to AKS (prod)'
+    environment: 'prod'
+    # Load the 'prod' variable group
+    variables:
+    - group: 'my-app-prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'helm-chart'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: HelmDeploy@0
+            displayName: 'Deploy Helm chart to prod'
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: '$(KUBERNETES_SERVICE_CONNECTION)'
+              command: 'upgrade'
+              chartType: 'FilePath'
+              chartPath: '$(System.ArtifactsDirectory)/helm-chart/hello-world-*.tgz'
+              releaseName: 'hello-world-release'
+              install: true
+              namespace: 'default'
+              valueFile: '$(Build.SourcesDirectory)/helm/values.prod.yaml'

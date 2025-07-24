@@ -1,154 +1,136 @@
-# Infrastructure and Deployment Documentation
 
-## Overview
+# CI/CD Pipeline for AKS using Terraform, Helm, and Azure DevOps
 
-This repository contains comprehensive documentation for our cloud infrastructure and deployment pipeline using Azure Kubernetes Service (AKS), Helm, and Azure DevOps. The setup follows GitOps principles and infrastructure-as-code practices for reliable, repeatable deployments.
+This repository contains a complete, end-to-end solution for deploying a containerized application to Azure Kubernetes Service (AKS). It uses **Terraform** for infrastructure provisioning, **Helm** for application packaging, and **Azure DevOps Pipelines** for CI/CD orchestration.
 
-## Architecture Components
+![Azure DevOps](https://img.shields.io/badge/Azure_DevOps-0078D7?style=for-the-badge&logo=azure-devops&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
+![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 
-### 1. Infrastructure (AKS)
-- Azure Kubernetes Service cluster
-- Terraform-managed infrastructure
-- Network security and RBAC
-- Monitoring and logging setup
+---
 
-[Details in AKS Documentation](1.aks.md)
+## Core Concepts
 
-### 2. Application Deployment (Helm)
-- Parent-child chart architecture
-- Reusable components
-- Environment-specific configurations
-- Deployment strategies
+This project demonstrates a repeatable and automated workflow for infrastructure and application deployment:
 
-[Details in Helm Documentation](2.helm.md)
+1.  **Infrastructure as Code (IaC):** **Terraform** is used to define and provision all necessary Azure resources, including the Virtual Network (VNet) and multiple AKS clusters representing different environments (dev, prod). This ensures the infrastructure is version-controlled and consistent.
 
-### 3. CI/CD Pipeline (Azure DevOps)
-- Automated build and deployment
-- GitOps workflow
-- Multi-environment promotion
-- Security scanning and compliance
+2.  **Application Packaging:** **Helm** is used to package the Kubernetes manifests for the application. This allows for templating and managing application configurations for different environments from a single, version-controlled chart.
 
-[Details in CI/CD Documentation](3.cicd.md)
+3.  **CI/CD Automation:** **Azure DevOps Pipelines** automates the entire process. When code is pushed to the repository, the pipeline automatically packages the Helm chart and deploys it sequentially across the dev and production environments, following a standard promotion model.
 
-## Quick Start
+## Repository Structure
 
-1. **Infrastructure Setup**:
-   ```bash
-   # Initialize Terraform
-   terraform init
-   
-   # Plan and apply AKS infrastructure
-   terraform plan -out=tfplan
-   terraform apply tfplan
-   ```
-
-2. **Helm Deployment**:
-   ```bash
-   # Package and deploy charts
-   helm package helm-charts/common/
-   helm package helm-charts/services/*
-   helm package helm-charts/parent-chart/
-   
-   # Install release
-   helm upgrade --install my-release parent-chart/ -f values-dev.yaml
-   ```
-
-3. **Pipeline Setup**:
-   - Configure Azure DevOps project
-   - Set up service connections
-   - Create variable groups
-   - Enable pipeline triggers
-
-## Infrastructure Overview
-
-```mermaid
-graph TD
-    A[Azure DevOps] -->|CI/CD| B[Azure Container Registry]
-    B -->|Images & Charts| C[AKS Cluster]
-    D[Terraform] -->|Manages| C
-    E[Helm] -->|Deploys to| C
-    F[GitOps] -->|Syncs| C
+```
+.
+├── azure-pipelines.yml       # The main Azure DevOps pipeline definition.
+├── helm/                     # The Helm chart for the application.
+│   ├── Chart.yaml            # Chart metadata.
+│   ├── values.yaml           # Default configuration values.
+│   ├── values.dev.yaml       # Overrides for the 'dev' environment.
+│   ├── values.prod.yaml      # Overrides for the 'prod' environment.
+│   └── templates/            # Directory for Kubernetes manifest templates.
+│       ├── deployment.yaml   # Defines the Kubernetes Deployment.
+│       └── service.yaml      # Defines the Kubernetes Service.
+└── terraform/                # The Terraform code for provisioning infrastructure.
+    ├── main.tf               # Main entrypoint for infrastructure creation.
+    ├── variables.tf          # Variable definitions.
+    ├── terraform.tfvars      # (User-created) Variable values.
+    └── modules/              # Reusable Terraform modules.
+        ├── aks/              # Module for creating the AKS cluster.
+        └── network/          # Module for creating the VNet.
 ```
 
-## Best Practices
+---
 
-1. **Security**:
-   - RBAC enabled
-   - Network policies
-   - Pod security policies
-   - Regular security scanning
+## Getting Started: A Step-by-Step Guide
 
-2. **Scalability**:
-   - Autoscaling enabled
-   - Resource limits defined
-   - Multi-node pools
-   - Load balancing
+### Prerequisites
 
-3. **Maintainability**:
-   - Infrastructure as Code
-   - GitOps workflow
-   - Automated deployments
-   - Comprehensive monitoring
+*   An **Azure Account** with permissions to create resources.
+*   An **Azure DevOps Organization** and a new Project.
+*   **Terraform CLI** (`~> 1.0`) installed locally.
+*   **Azure CLI** installed locally (`az`).
 
-## Environment Setup
+### Step 1: Clone the Repository
 
-| Environment | Purpose | Promotion Strategy |
-|------------|---------|-------------------|
-| Dev        | Development & Testing | Automatic |
-| QA         | Quality Assurance | Manual Approval |
-| Prod       | Production | Manual Approval |
+Clone this repository to your local machine and navigate into the directory.
 
-## Documentation Structure
+```bash
+git clone <your-repo-url>
+cd <your-repo-directory>
+```
 
-1. [AKS Setup and Configuration](1.aks.md)
-   - Cluster provisioning
-   - Network configuration
-   - Security setup
-   - Monitoring integration
+### Step 2: Provision the Infrastructure with Terraform
 
-2. [Helm Chart Architecture](2.helm.md)
-   - Chart structure
-   - Deployment configuration
-   - Environment management
-   - Best practices
+1.  **Navigate to the Terraform directory:**
+    ```bash
+    cd terraform
+    ```
 
-3. [CI/CD Implementation](3.cicd.md)
-   - Pipeline configuration
-   - GitOps workflow
-   - Deployment strategy
-   - Rollback procedures
+2.  **Create your variables file:**
+    Create a file named `terraform.tfvars` and add the following content. Fill in the values for your specific setup.
+    ```hcl
+    # terraform/terraform.tfvars
+    resource_group_name = "my-aks-project-rg"
+    location            = "East US"
+    prefix              = "myapp"
+    ```
 
-## Prerequisites
+3.  **Log in to Azure and Initialize Terraform:**
+    ```bash
+    az login
+    terraform init
+    ```
 
-- Azure Subscription
-- Azure DevOps Project
-- Terraform >= 1.0.0
-- Helm >= 3.0.0
-- kubectl
-- Azure CLI
+4.  **Plan and Apply:**
+    Review the plan and, if it looks correct, apply it to create the resources in Azure.
+    ```bash
+    terraform plan -out=tfplan
+    terraform apply "tfplan"
+    ```
+    This will provision a VNet and three separate AKS clusters: `myapp-dev-aks` and `myapp-prod-aks`.
 
-## Getting Started
+### Step 3: Configure Azure DevOps
 
-1. Clone this repository
-2. Follow the AKS setup guide in [1.aks.md](1.aks.md)
-3. Configure Helm charts as described in [2.helm.md](2.helm.md)
-4. Set up CI/CD pipelines following [3.cicd.md](3.cicd.md)
+1.  **Push the Code:**
+    Push the contents of this repository to a new Git repository in your Azure DevOps project.
 
-## Support and Maintenance
+2.  **Create Service Connections:**
+    You need to create a service connection for each AKS cluster so the pipeline can securely access them.
+    *   In Azure DevOps, go to **Project Settings** > **Service connections**.
+    *   Click **Create service connection**.
+    *   Select **Kubernetes**.
+    *   Choose **Kubeconfig** as the authentication method.
+    *   Run the following Azure CLI command for *each* environment (`dev`,  `prod`) to get its kubeconfig, and paste the output into the service connection form.
+        ```bash
+        # Run for dev and prod
+        az aks get-credentials --resource-group <your-resource-group-name> --name <cluster-name> --admin
+        ```
+    *   Name the service connections exactly as follows:
+        *   `k8s-dev-connection`
+        *   `k8s-prod-connection`
 
-- Regular updates and patches
-- Backup and disaster recovery
-- Monitoring and alerting
-- Performance optimization
+3.  **Create Variable Groups:**
+    Variable groups are used to pass the service connection names to the correct pipeline stage.
+    *   Go to **Pipelines** > **Library**.
+    *   Create three new variable groups:
+        *   **Name:** `my-app-dev` -> Add variable `KUBERNETES_SERVICE_CONNECTION` with value `k8s-dev-connection`.
+        *   **Name:** `my-app-prod` -> Add variable `KUBERNETES_SERVICE_CONNECTION` with value `k8s-prod-connection`.
+    *   In each variable group, ensure you grant pipeline permissions.
 
-## Contributing
+### Step 4: Create and Run the Pipeline
 
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
-4. Ensure CI passes
-5. Get approval from maintainers
+1.  **Create the Pipeline:**
+    *   In Azure DevOps, go to **Pipelines** and click **Create Pipeline**.
+    *   Select **Azure Repos Git** and choose your repository.
+    *   Select **Existing Azure Pipelines YAML file**.
+    *   Set the path to `/azure-pipelines.yml` and click **Continue**.
 
-## License
+2.  **Run the Pipeline:**
+    *   Click **Run**. You will see the parameters (`deployToDev`, `deployToProd`) in the run dialog.
+    *   Leave the defaults and run the pipeline.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+The pipeline will now execute. It will build the Helm chart and then deploy it sequentially to your dev and production environments.
+
