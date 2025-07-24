@@ -1,2 +1,47 @@
+# Development environment configuration
+global:
+  environment: dev
+
 replicaCount: 1
-environment: "dev"
+
+image:
+  tag: dev-latest
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+ingress:
+  enabled: true
+  hosts:
+    - host: hello-world.dev.company.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+config:
+  logLevel: debug
+  metricsEnabled: true
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    interval: 30s
+
+# Development-specific settings
+dev:
+  # Enable debug mode
+  debugMode: true
+  # Enable development tools
+  devTools: true
+  # Configure hot reload
+  hotReload: true
+  # Development endpoints
+  endpoints:
+    swagger: true
+    metrics: true
+    debug: true
